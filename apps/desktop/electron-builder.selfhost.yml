@@ -1,0 +1,7 @@
+# Replace the upstream publisher as an array; merging a provider into the
+# GitHub object would leave incompatible owner/repo/releaseType properties.
+extends: ./electron-builder.yml
+publish:
+  - provider: generic
+    url: https://ca.mikeux.com:188/api/desktop-updates
+    channel: latest

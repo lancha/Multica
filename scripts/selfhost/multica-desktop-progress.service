@@ -1,0 +1,9 @@
+[Unit]
+Description=Publish Multica desktop build progress to its project issue
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-%h/.config/multica/deploy.env
+WorkingDirectory=%h/homelab/multica
+ExecStart=/bin/bash %h/homelab/multica/scripts/selfhost/desktop-build-progress.sh

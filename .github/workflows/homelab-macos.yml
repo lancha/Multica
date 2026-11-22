@@ -1,0 +1,64 @@
+name: Homelab macOS build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homelab-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      VITE_API_URL: ${{ vars.MULTICA_API_URL || 'https://ca.mikeux.com:188' }}
+      VITE_WS_URL: ${{ vars.MULTICA_WS_URL || 'wss://ca.mikeux.com:188/ws' }}
+      VITE_APP_URL: ${{ vars.MULTICA_APP_URL || 'https://ca.mikeux.com:188' }}
+      MULTICA_UPDATE_URL: ${{ vars.MULTICA_UPDATE_URL || 'https://ca.mikeux.com:188/api/desktop-updates' }}
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "~1.27.4"
+          check-latest: true
+          cache-dependency-path: server/go.sum
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Validate configuration
+        run: |
+          test -n "$VITE_API_URL"
+          test -n "$VITE_WS_URL"
+          test -n "$VITE_APP_URL"
+          test -n "$MULTICA_UPDATE_URL"
+      - run: pnpm install --frozen-lockfile
+      - name: Set preview build version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          version="$(node -p 'require("./apps/desktop/package.json").version')"
+          git tag "v${version}-build.${BUILD_NUMBER}"
+      - name: Package Apple Silicon
+        working-directory: apps/desktop
+        run: pnpm package -- --mac --arm64 --config electron-builder.selfhost.yml "-c.publish.url=$MULTICA_UPDATE_URL" -c.publish.channel=latest --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: multica-macos-arm64-${{ github.sha }}
+          path: |
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.zip
+            apps/desktop/dist/*.blockmap
+            apps/desktop/dist/latest-mac.yml
+          if-no-files-found: error
+          retention-days: 30

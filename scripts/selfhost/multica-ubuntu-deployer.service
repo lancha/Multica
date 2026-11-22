@@ -1,0 +1,11 @@
+[Unit]
+Description=Deploy and verify a localized Multica release
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/mike/homelab/multica
+EnvironmentFile=-/home/mike/.config/multica/deploy.env
+ExecStart=/home/mike/homelab/multica/scripts/selfhost/deploy-ubuntu.sh
+TimeoutStartSec=45min
