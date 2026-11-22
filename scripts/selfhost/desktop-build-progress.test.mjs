@@ -20,6 +20,7 @@ test("same-second milestones stay ordered and are not posted twice", () => {
     writeFileSync(relay, [...records, ...records].join("\n") + "\n");
     writeFileSync(comments, "");
     writeFileSync(join(bin, "ssh"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+    writeFileSync(join(bin, "python3"), '#!/bin/sh\nprintf "%s\\n" "$*" >>"$TEST_RETRIES"\n', { mode: 0o755 });
     writeFileSync(join(bin, "curl"), `#!/usr/bin/env node
 const fs = require("node:fs");
 const args = process.argv.slice(2);
@@ -30,7 +31,7 @@ if (method === "POST" && url.includes("/comments?")) {
   fs.appendFileSync(process.env.TEST_COMMENTS, args[args.indexOf("--data") + 1] + "\\n");
   console.log("{}");
 } else if (url.includes("/comments?")) {
-  console.log("[]");
+  console.log(process.env.TEST_RETRY ? '[{"id":"retry-1","content":"重新运行"}]' : "[]");
 } else if (method === "PUT") {
   console.log("{}");
 } else if (url.includes("/api/projects/")) {
@@ -38,7 +39,7 @@ if (method === "POST" && url.includes("/comments?")) {
 } else if (url.includes("/api/issues/issue?")) {
   console.log(JSON.stringify({id:"issue",status:"in_progress",revision:1}));
 } else {
-  console.log(JSON.stringify({issues:[{id:"issue", identifier:"TEST-1", title:"Mac App 自动构建 · v0.6.2", status:"in_progress", revision:1}]}));
+  console.log(JSON.stringify({issues:[{id:"issue", identifier:"TEST-1", title:"Mac App 自动构建 · v0.6.2", status:process.env.TEST_RETRY ? "blocked" : "in_progress", revision:1}]}));
 }
 `, { mode: 0o755 });
     const env = {
@@ -51,6 +52,8 @@ if (method === "POST" && url.includes("/comments?")) {
       MULTICA_MAC_PROGRESS_LOG: relay,
       TEST_COMMENTS: comments,
       TEST_REQUESTS: requests,
+      TEST_RETRIES: join(root, "retries"),
+      MULTICA_GITHUB_PIPELINE: "/test/github/pipeline.py",
     };
     const script = fileURLToPath(new URL("./desktop-build-progress.sh", import.meta.url));
     execFileSync("bash", [script], { env });
@@ -62,6 +65,13 @@ if (method === "POST" && url.includes("/comments?")) {
     assert.equal(JSON.parse(readFileSync(config, "utf8")).workspace_id, "workspace");
     assert.throws(() => execFileSync("bash", [script], { env: { ...env, TEST_PROJECT_WORKSPACE: "wrong" }, stdio: "pipe" }));
     assert.equal(readFileSync(comments, "utf8"), first);
+    execFileSync("bash", [script], { env: { ...env, TEST_RETRY: "1" } });
+    assert.equal(readFileSync(env.TEST_RETRIES, "utf8").trim(), "/test/github/pipeline.py --retry v0.6.2");
+    const afterRetry = readFileSync(comments, "utf8");
+    assert.match(afterRetry, /GitHub/);
+    execFileSync("bash", [script], { env: { ...env, TEST_RETRY: "1" } });
+    assert.equal(readFileSync(env.TEST_RETRIES, "utf8").trim().split("\n").length, 1);
+    assert.equal(readFileSync(comments, "utf8"), afterRetry);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

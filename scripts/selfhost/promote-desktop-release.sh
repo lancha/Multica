@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Promote deploy/vX.Y.Z (or a localized deploy/vX.Y.Z.N) to the matching
 # vX.Y.Z / vX.Y.Z.N tag. This must run only after that exact candidate commit
-# has been deployed and health-checked on Ubuntu. A plain release also wakes the
-# macOS builder; a localized X.Y.Z.N release is server-only by design (see
+# has been deployed and health-checked on Ubuntu. A plain release also starts the
+# GitHub pipeline; a localized X.Y.Z.N release is server-only by design (see
 # UPSTREAM_SYNC.md), so it is promoted without a desktop build.
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
@@ -17,10 +17,7 @@ TOKEN_FILE="${FORGEJO_TOKEN_FILE:-$HOME/.config/multica/forgejo-token}"
 FORGEJO_USER="${FORGEJO_USER:-mike}"
 TAGGER_NAME="${MULTICA_RELEASE_TAGGER_NAME:-Multica Release Bot}"
 TAGGER_EMAIL="${MULTICA_RELEASE_TAGGER_EMAIL:-multica-release@localhost}"
-MAC_BUILDER_HOST="${MULTICA_MAC_BUILDER_HOST:-192.168.0.182}"
-MAC_BUILDER_USER="${MULTICA_MAC_BUILDER_USER:-mike}"
-MAC_BUILDER_LABEL="${MULTICA_MAC_BUILDER_LABEL:-com.mikeux.multica-desktop-builder}"
-MAC_BUILDER_SSH_OPTIONS="${MULTICA_MAC_BUILDER_SSH_OPTIONS:--o BatchMode=yes -o ConnectTimeout=10}"
+GITHUB_RELEASE_UNIT="${MULTICA_GITHUB_RELEASE_UNIT:-multica-github-release.service}"
 
 [[ "$CANDIDATE_TAG" =~ ^deploy/v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(-mikeux\.[0-9]+)?$ ]] || {
   echo "usage: $0 deploy/vX.Y.Z[.N]" >&2
@@ -84,17 +81,8 @@ if [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 0
 fi
 
-# Trigger the dedicated Mac builder immediately. The builder remains idempotent
-# and checks the promoted Forgejo release before doing any work. Promotion is
-# already valid if the Mac is temporarily offline, so this is intentionally a
-# warning rather than a rollback condition; the Mac LaunchAgent's 30-minute
-# timer remains the retry path.
-if command -v ssh >/dev/null 2>&1; then
-  # shellcheck disable=SC2086
-  if ssh $MAC_BUILDER_SSH_OPTIONS "$MAC_BUILDER_USER@$MAC_BUILDER_HOST" \
-      "launchctl kickstart -k gui/\$(id -u)/$MAC_BUILDER_LABEL"; then
-    echo "macOS builder triggered: $MAC_BUILDER_USER@$MAC_BUILDER_HOST ($MAC_BUILDER_LABEL)"
-  else
-    echo "warning: could not trigger macOS builder at $MAC_BUILDER_USER@$MAC_BUILDER_HOST; timer retry remains enabled" >&2
-  fi
+if systemctl --user start --no-block "$GITHUB_RELEASE_UNIT"; then
+  echo "GitHub macOS release pipeline triggered: $GITHUB_RELEASE_UNIT"
+else
+  echo "warning: GitHub release trigger unavailable; Ubuntu timer will retry" >&2
 fi

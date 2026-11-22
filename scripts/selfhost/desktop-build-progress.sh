@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Ubuntu bridge from the Mac builder progress protocol to a Multica issue.
+# Ubuntu bridge from the GitHub publisher progress protocol to a Multica issue.
 CONFIG="${MULTICA_CONFIG:-$HOME/.multica/config.json}"
 PROJECT_ID="${MULTICA_BUILD_PROJECT_ID:?set the destination build project explicitly}"
-MAC_HOST="${MULTICA_MAC_BUILDER_HOST:-192.168.0.182}"
-MAC_USER="${MULTICA_MAC_BUILDER_USER:-mike}"
-MAC_LABEL="${MULTICA_MAC_BUILDER_LABEL:-com.mikeux.multica-desktop-builder}"
-MAC_LOG="${MULTICA_MAC_BUILDER_LOG:-/Users/mike/Library/Logs/multica-desktop-builder.log}"
-SSH_OPTIONS="${MULTICA_MAC_BUILDER_SSH_OPTIONS:--o BatchMode=yes -o ConnectTimeout=10}"
+GITHUB_PIPELINE="${MULTICA_GITHUB_PIPELINE:-$HOME/.local/lib/multica-github/pipeline.py}"
 STATE_DIR="${MULTICA_DEPLOY_STATE_DIR:-$HOME/.local/state/multica-deploy}/desktop-progress"
 
 [ -r "$CONFIG" ] || exit 0
@@ -19,12 +15,10 @@ token="$(jq -r .token "$CONFIG")"
 workspace="${MULTICA_WORKSPACE_ID:-$(jq -r .workspace_id "$CONFIG")}"
 [ -n "$base" ] && [ -n "$token" ] && [ -n "$workspace" ] || exit 0
 
-# shellcheck disable=SC2086
-lines="$(ssh $SSH_OPTIONS "$MAC_USER@$MAC_HOST" "grep ' PROGRESS v' '$MAC_LOG' | tail -200" 2>/dev/null || true)"
+lines=""
 relay_log="${MULTICA_MAC_PROGRESS_LOG:-${MULTICA_DEPLOY_STATE_DIR:-$HOME/.local/state/multica-deploy}/mac-progress.log}"
 if [ -r "$relay_log" ]; then
-  # Preserve log order within the same second (90 must precede 100), while
-  # removing duplicate records received through both SSH and the relay.
+  # Preserve milestone order within the same second and remove duplicate records.
   lines="$( { printf '%s\n' "$lines"; tail -200 "$relay_log"; } | grep ' PROGRESS v' | awk '!seen[$0]++' | LC_ALL=C sort -s -k1,1)"
 fi
 [ -n "$lines" ] || exit 0
@@ -79,16 +73,15 @@ if [ -n "$rerun" ]; then
   consumed="$(cat "$rerun_state" 2>/dev/null || true)"
   issue_status="$(printf '%s' "$issue" | jq -r .status)"
   if [ "$rerun_id" != "$consumed" ] && { [ "$issue_status" = blocked ] || [ "$previous_status" = FAILED ]; }; then
-    # shellcheck disable=SC2086
-    if ssh $SSH_OPTIONS "$MAC_USER@$MAC_HOST" "launchctl kickstart -k gui/\$(id -u)/$MAC_LABEL"; then
-      post_comment "已收到重新运行指令。Mac 构建器已重新启动，进度将继续自动更新。"
+    if python3 "$GITHUB_PIPELINE" --retry "$tag"; then
+      post_comment "已收到重新运行指令。GitHub 构建已进入重试队列，进度将继续自动更新。"
       set_issue_status in_progress
       printf '%s\n' "$rerun_id" >"$rerun_state"
       printf 'RUNNING\n' >"$status_state"
       previous_status=RUNNING
       printf '%s: %s rerun requested\n' "$identifier" "$tag"
     else
-      post_comment "重新运行失败：当前无法连接或启动 Mac 构建器，请检查构建机在线状态。"
+      post_comment "重新运行失败：请检查 Ubuntu 的 GitHub 发布服务。"
       printf '%s\n' "$rerun_id" >"$rerun_state"
     fi
   fi

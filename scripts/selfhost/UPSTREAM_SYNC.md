@@ -91,7 +91,7 @@ Run them from a clean checkout and review every diff before pushing.
 
 7. Let Ubuntu deploy and verify the candidate. A successful
    `deploy-ubuntu.sh` run invokes `promote-desktop-release.sh`, creating the
-   `vX.Y.Z` tag that wakes the Mac builder.
+   `vX.Y.Z` tag that starts the Ubuntu GitHub release pipeline.
 
 ## Automated upgrade agent
 
@@ -127,7 +127,7 @@ different code would permanently block that update. The actual upstream identity
 stays in the `Vendor snapshot:` commit trailer.
 
 `X.Y.Z.N` releases are server-only. `promote-desktop-release.sh` still creates the
-verified `vX.Y.Z.N` tag after the Ubuntu health gate, but the Mac builder packages
+verified `vX.Y.Z.N` tag after the Ubuntu health gate, but GitHub Actions packages
 only plain `vX.Y.Z` releases (plus the historical `vX.Y.Z-mikeux.N` tags): a
 four-component version is not valid semver, and `electron-updater` refuses to start
 when the running app reports one. Desktop installers therefore resume at the next

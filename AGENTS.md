@@ -141,6 +141,7 @@ Workspace-scoped queries filter by `workspace_id`; membership gates access and `
 ## Change and Delivery Rules
 
 - Keep changes scoped; reuse existing patterns.
+- Self-host desktop releases are built by GitHub Actions after matching Forgejo release and `deploy/` tags pass Ubuntu deployment gates. Keep the GitHub trigger and Ubuntu progress/retry bridge intact; the local Mac builder is manual recovery only. Maintain the exporter and publisher in Homelab's `projects/multica-github/`, and never mirror private Forgejo history into the public build repository.
 - Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.
 - Do not add internal compatibility shims, dual writes, fallback paths, or legacy adapters unless requested. This does not relax API response compatibility above.
 - Use names, types, and tests to express behavior. Code comments are English and kept for non-obvious rationale and constraints; remove superseded plans and incident narratives when updating code. Preserve tool directives and mixed-version contracts.

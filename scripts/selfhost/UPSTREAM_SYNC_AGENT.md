@@ -35,9 +35,9 @@ Use this runbook for an automated Multica task that keeps the localized
 - `apps/web/features/landing/utils/github-release.ts` must retain the private
   Forgejo release source selected by `DESKTOP_RELEASES_SOURCE`, including
   `FORGEJO_BASE_URL`, `FORGEJO_REPO`, and server-only `FORGEJO_TOKEN` support.
-- `scripts/selfhost/` must retain the macOS builder, its launchd configuration,
+- `scripts/selfhost/` must retain the manual recovery macOS builder, its launchd configuration,
   and this synchronization workflow.
-- The macOS builder consumes promoted `vX.Y.Z` tags with identical `deploy/`
+- The GitHub macOS pipeline consumes promoted `vX.Y.Z` tags with identical `deploy/`
   candidates; historical `-mikeux.N` tags remain supported. Never create the
   unprefixed tag before the Ubuntu health gate. Preserve the public download
   proxy, server-only credentials, and runtime rewrite exemptions.

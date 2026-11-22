@@ -34,7 +34,16 @@ configuration covers image pulls but does not proxy dependency downloads inside
 build steps. Keep host-specific proxy values in the private deployment environment;
 do not add Dockerfile `ENV` entries that persist them in the runtime image.
 
-Runs on the Mac. Picks the newest promoted `vX.Y.Z` tag (with an identical
+The automatic release path now runs through GitHub Actions, orchestrated by
+Ubuntu's `multica-github-release.service` and five-minute timer. Its maintained
+exporter, workflow, verification code, and installation instructions live in
+Homelab's `projects/multica-github/`. Forgejo remains the private source of truth;
+GitHub receives scanned source snapshots with independent history. Never mirror
+Forgejo history to the public repository.
+
+The local builder below is retained for manual recovery only. Keep its
+LaunchAgent disabled while the GitHub publisher is enabled.
+It runs on the Mac and picks the newest promoted `vX.Y.Z` tag (with an identical
 `deploy/` candidate; historical `-mikeux.N` tags remain readable), and if that
 tag's Forgejo release has no macOS installer yet, checks the tag out, builds the
 desktop app (unsigned / ad-hoc), and uploads the artifacts to the release.
@@ -57,8 +66,8 @@ server-side, so desktop clients never need a Forgejo token.
 The supplied LaunchAgent also relays progress-only records back to Ubuntu using
 the Mac's existing `ubuntu26` SSH identity and known host. This lets the normal
 Ubuntu progress timer update Multica even when the Mac is on another network.
-It does not make an offline Mac remotely startable: comment-triggered retries
-still require Ubuntu-to-Mac SSH reachability. A dead configured home proxy is
+Comment-triggered retries now start the GitHub pipeline on Ubuntu.
+A dead configured home proxy is
 bypassed for this build only, after direct package-registry access is verified.
 
 Configuration (environment variables, all optional):
@@ -175,7 +184,7 @@ always retains the newest deployer and host-local `.env`/Compose overlay.
 
 Only after the health gate and reported commit check succeed does
 `promote-desktop-release.sh` remove the `deploy/` prefix and create the matching
-`vX.Y.Z` (or `vX.Y.Z.N`). A plain `vX.Y.Z` tag is the handoff to the Mac builder;
+`vX.Y.Z` (or `vX.Y.Z.N`). A plain `vX.Y.Z` tag is the handoff to the GitHub builder;
 a server-only `vX.Y.Z.N` release is promoted without waking it. Database dumps
 are not automatically restored on failure because a destructive database
 restore requires explicit operator review.
@@ -221,28 +230,24 @@ every build, not just when node_modules is missing. Old clients with a GitHub
 feed need a one-time manual reinstall to migrate to this site's feed. The feed
 supports discovery/download; unsigned macOS builds still require manual install.
 
-## Automatic Mac builder trigger
+## Automatic GitHub builder trigger
 
-After Ubuntu health-gates a `deploy/vX.Y.Z` candidate, promotion can
-trigger the dedicated Mac builder immediately instead of waiting for its
-30-minute LaunchAgent timer. Configure these private environment variables on
-Ubuntu26 (never commit them):
+After Ubuntu health-gates a `deploy/vX.Y.Z` candidate, promotion starts
+`multica-github-release.service` without waiting for the build. Override the unit
+name with `MULTICA_GITHUB_RELEASE_UNIT` if needed. The Ubuntu timer retries
+discovery every five minutes, including when the promotion hook cannot start it.
+Mac sleep or network location no longer blocks releases.
 
-```text
-MULTICA_MAC_BUILDER_HOST=192.168.0.182
-MULTICA_MAC_BUILDER_USER=mike
-MULTICA_MAC_BUILDER_LABEL=com.mikeux.multica-desktop-builder
-```
-
-Ubuntu26 must have a passwordless SSH key accepted by the Mac user and a
-known-host entry. If the Mac is offline, promotion remains successful and the
-LaunchAgent timer retries later. The website status endpoint reports the
-release as `building` while the Mac assets are missing and `published` after
-the arm64 DMG and ZIP are uploaded.
+The pipeline verifies the promoted source SHA, GitHub run and attempt, archive
+digest, every asset hash, and updater metadata before returning assets to
+Forgejo. It uploads metadata last, verifies remote copies, and only then
+publishes a new draft release. Existing assets are never overwritten. Private
+Forgejo credentials stay on Ubuntu; GitHub receives no Forgejo token.
 
 ## Multica task progress
 
-The Mac builder emits stable `PROGRESS <tag> <percent> <stage>` records.
+The GitHub publisher emits stable `PROGRESS <tag> <percent> <stage>` records
+into `~/.local/state/multica-deploy/mac-progress.log` on Ubuntu.
 Ubuntu runs `desktop-build-progress.sh` once a minute, creates or reuses the
 matching issue in the configured Multica project, and posts a comment only
 when a new 10% stage is reached. A failure moves the issue to `blocked`; 100%
@@ -263,5 +268,5 @@ creating or updating any issue. There is no built-in project UUID fallback.
 
 When a build is `blocked`, a workspace member can post the exact standalone
 comment `重新运行` on that issue. The Ubuntu progress bridge consumes each
-comment once, restarts the Mac LaunchAgent, acknowledges the command in the
+comment once, queues the GitHub pipeline retry on Ubuntu, acknowledges the command in the
 issue, and moves it back to `in_progress`.
