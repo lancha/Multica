@@ -197,12 +197,13 @@ func TestAuth_ValidToken(t *testing.T) {
 }
 
 func TestAuth_TemporarilyDisabledJWTByUserID(t *testing.T) {
+	t.Setenv("MULTICA_DISABLED_USER_IDS", "00000000-0000-4000-8000-000000000001")
 	handler := authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("next handler should not be called")
 	}))
 
 	claims := validClaims()
-	claims["sub"] = "514492f7-b30f-4147-bd33-c0e8ce5d6d4f"
+	claims["sub"] = "00000000-0000-4000-8000-000000000001"
 	token := generateToken(claims, auth.JWTSecret())
 
 	req := httptest.NewRequest("GET", "/api/me", nil)
@@ -216,13 +217,14 @@ func TestAuth_TemporarilyDisabledJWTByUserID(t *testing.T) {
 }
 
 func TestAuth_TemporarilyDisabledJWTByEmail(t *testing.T) {
+	t.Setenv("MULTICA_DISABLED_USER_EMAILS", "disabled@example.invalid")
 	handler := authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("next handler should not be called")
 	}))
 
 	claims := validClaims()
 	claims["sub"] = "not-the-disabled-id"
-	claims["email"] = "pdzzer68@embassybase.com"
+	claims["email"] = "disabled@example.invalid"
 	token := generateToken(claims, auth.JWTSecret())
 
 	req := httptest.NewRequest("GET", "/api/me", nil)

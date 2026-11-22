@@ -4,14 +4,14 @@
 # the installer to the Forgejo release that matches the built tag, so the web
 # app's /download page can serve it.
 #
-# Designed to run unattended (launchd agent, see com.mikeux.multica-desktop-builder.plist):
+# Designed to run unattended (launchd agent, see desktop-builder.plist.example):
 # every run is idempotent — it picks the newest tag matching TAG_PATTERN, skips
 # work when that release already carries a macOS installer, and otherwise
 # builds and uploads.
 #
 # Configuration (environment overrides, else defaults):
-#   FORGEJO_BASE_URL   https://git.mikeux.com:188
-#   FORGEJO_REPO       mike/Multica
+#   FORGEJO_BASE_URL   https://forgejo.example.invalid
+#   FORGEJO_REPO       owner/Multica
 #   FORGEJO_TOKEN      falls back to ~/.config/multica/forgejo-token (chmod 600)
 #   WORK_DIR           ~/src/multica
 #   WORK_BRANCH        main
@@ -27,17 +27,17 @@
 # Exit codes: 0 = success or nothing to do; non-zero = failure (logged).
 set -euo pipefail
 
-FORGEJO_BASE_URL="${FORGEJO_BASE_URL:-https://git.mikeux.com:188}"
-FORGEJO_REPO="${FORGEJO_REPO:-mike/Multica}"
+FORGEJO_BASE_URL="${FORGEJO_BASE_URL:-https://forgejo.example.invalid}"
+FORGEJO_REPO="${FORGEJO_REPO:-owner/Multica}"
 WORK_DIR="${WORK_DIR:-$HOME/src/multica}"
 WORK_BRANCH="${WORK_BRANCH:-main}"
 TAG_PATTERN="${TAG_PATTERN:-v*}"
 DRY_RUN="${DRY_RUN:-0}"
 CLEANUP_AFTER_UPLOAD="${CLEANUP_AFTER_UPLOAD:-1}"
-DESKTOP_API_URL="${DESKTOP_API_URL:-https://ca.mikeux.com:188}"
-DESKTOP_WS_URL="${DESKTOP_WS_URL:-wss://ca.mikeux.com:188/ws}"
-DESKTOP_APP_URL="${DESKTOP_APP_URL:-https://ca.mikeux.com:188}"
-DESKTOP_UPDATE_URL="${DESKTOP_UPDATE_URL:-https://ca.mikeux.com:188/api/desktop-updates}"
+DESKTOP_API_URL="${DESKTOP_API_URL:-https://app.example.invalid}"
+DESKTOP_WS_URL="${DESKTOP_WS_URL:-wss://app.example.invalid/ws}"
+DESKTOP_APP_URL="${DESKTOP_APP_URL:-https://app.example.invalid}"
+DESKTOP_UPDATE_URL="${DESKTOP_UPDATE_URL:-https://app.example.invalid/api/desktop-updates}"
 
 if [ -z "${TARGET_ARCH:-}" ]; then
   case "$(uname -m)" in

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>org.example.multica-builder</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/path/to/Multica/scripts/selfhost/build-desktop-macos.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/path/to/Multica</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

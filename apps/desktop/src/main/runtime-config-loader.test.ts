@@ -66,18 +66,18 @@ describe("loadRuntimeConfig", () => {
         isDev: false,
         configPath: join(dir, "missing.json"),
         env: {
-          apiUrl: "https://ca.mikeux.com:188",
-          wsUrl: "wss://ca.mikeux.com:188/ws",
-          appUrl: "https://ca.mikeux.com:188",
+          apiUrl: "https://app.example.invalid",
+          wsUrl: "wss://app.example.invalid/ws",
+          appUrl: "https://app.example.invalid",
         },
       }),
     ).resolves.toEqual({
       ok: true,
       config: {
         schemaVersion: 1,
-        apiUrl: "https://ca.mikeux.com:188",
-        wsUrl: "wss://ca.mikeux.com:188/ws",
-        appUrl: "https://ca.mikeux.com:188",
+        apiUrl: "https://app.example.invalid",
+        wsUrl: "wss://app.example.invalid/ws",
+        appUrl: "https://app.example.invalid",
       },
     });
   });

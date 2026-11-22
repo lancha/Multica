@@ -1,7 +1,0 @@
-{
-  "dsh_version": "0.2.2-rc.1",
-  "node_version": "24.21.0",
-  "bridge_commit": "571d7c036d15f58ee88c89fd80afb0a6c7f0023c",
-  "bridge_version": "0.2.0-private.1",
-  "protocol_version": 1
-}

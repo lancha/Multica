@@ -18,18 +18,32 @@ def digest(path, algorithm):
     return result
 
 
-def main():
-    tag = os.environ["RELEASE_TAG"]
-    source = os.environ["SOURCE_REVISION"]
+def build_tag(environment, metadata, package):
+    tag = environment["RELEASE_TAG"]
+    source = environment["SOURCE_REVISION"]
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:-mikeux\.\d+)?", tag):
         raise ValueError("Invalid release tag")
-    metadata = json.loads(Path(".github/homelab-source.json").read_text())
     if not re.fullmatch(r"[0-9a-f]{40}", source) or metadata["revision"] != source:
         raise ValueError("Forgejo source does not match the requested commit")
-    version = tag[1:]
-    package = json.loads(Path("apps/desktop/package.json").read_text())
-    if package["version"] != version.split("-")[0]:
+    if package["version"] != tag[1:].split("-")[0]:
         raise ValueError("Package version does not match the promoted release")
+    if environment.get("PREVIEW_BUILD") == "true":
+        if environment["GITHUB_REF"] != "refs/heads/main":
+            raise ValueError("Preview builds require main")
+        run_id = int(environment["GITHUB_RUN_ID"])
+        attempt = int(environment["GITHUB_RUN_ATTEMPT"])
+        return f"v{package['version']}-build.{run_id}.{attempt}"
+    if environment["GITHUB_REF"] != f"refs/tags/cloud/{tag}":
+        raise ValueError("Release builds require an immutable cloud tag")
+    return tag
+
+
+def main():
+    metadata = json.loads(Path(".github/homelab-source.json").read_text())
+    package = json.loads(Path("apps/desktop/package.json").read_text())
+    tag = build_tag(os.environ, metadata, package)
+    source = os.environ["SOURCE_REVISION"]
+    version = tag[1:]
     if sys.argv[1] == "prepare":
         subprocess.run(["git", "tag", tag], check=True)
         return
@@ -66,6 +80,7 @@ def main():
             raise ValueError("App updater configuration mismatch")
     manifest = {
         "schema": 1,
+        "build_kind": "preview" if os.environ.get("PREVIEW_BUILD") == "true" else "release",
         "release_tag": tag,
         "source_revision": source,
         "github_sha": os.environ["GITHUB_SHA"],

@@ -1,5 +1,5 @@
 name: Homelab macOS build
-run-name: Homelab ${{ inputs.release_tag }} ${{ inputs.source_revision }}
+run-name: ${{ inputs.preview && 'Preview' || 'Homelab' }} ${{ inputs.release_tag }} ${{ inputs.source_revision }}
 
 on:
   workflow_dispatch:
@@ -12,6 +12,11 @@ on:
         description: Verified Forgejo commit
         required: true
         type: string
+      preview:
+        description: Build an artifact only from main with a unique prerelease version
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -32,6 +37,7 @@ jobs:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
       RELEASE_TAG: ${{ inputs.release_tag }}
       SOURCE_REVISION: ${{ inputs.source_revision }}
+      PREVIEW_BUILD: ${{ inputs.preview }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,6 +56,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:scripts
+      - name: Test private disabled-account configuration
+        working-directory: server
+        run: go test ./internal/auth ./internal/middleware ./internal/realtime
       - name: Package Apple Silicon
         working-directory: apps/desktop
         run: pnpm package -- --mac --arm64 --config electron-builder.selfhost.yml "-c.publish.url=$MULTICA_UPDATE_URL" -c.publish.channel=latest --publish never
