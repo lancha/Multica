@@ -43,6 +43,7 @@ jobs:
           test -n "$VITE_APP_URL"
           test -n "$MULTICA_UPDATE_URL"
       - run: pnpm install --frozen-lockfile
+      - run: pnpm test:scripts
       - name: Set preview build version
         env:
           BUILD_NUMBER: ${{ github.run_number }}
